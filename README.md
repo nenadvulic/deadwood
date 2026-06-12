@@ -7,7 +7,6 @@ Periphery finds unused declarations across the whole project. Deadwood runs it, 
 ## Requirements
 
 - [Periphery](https://github.com/peripheryapp/periphery) installed and configured (a `.periphery.yml`, or pass its args after `--`).
-- A git repository.
 
 ## Usage
 
