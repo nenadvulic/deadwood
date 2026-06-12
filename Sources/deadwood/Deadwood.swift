@@ -20,7 +20,7 @@ struct Deadwood: ParsableCommand {
     @Flag(name: .customLong("no-fail"), help: "Always exit 0, even when new dead code is found.")
     var noFail = false
 
-    @Argument(parsing: .captureForPassthrough,
+    @Argument(parsing: .allUnrecognized,
               help: "Arguments passed through to `periphery scan` (after --).")
     var peripheryArgs: [String] = []
 
