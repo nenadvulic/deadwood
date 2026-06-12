@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/deadwood-stop.sh",
+            "timeout": 300,
+            "statusMessage": "Checking for new dead code (deadwood)…"
+          }
+        ]
+      }
+    ]
+  }
+}
