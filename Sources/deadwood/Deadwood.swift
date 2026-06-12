@@ -26,8 +26,9 @@ struct Deadwood: ParsableCommand {
 
     func run() throws {
         let engine = DeadwoodEngine(runner: DefaultPeripheryRunner(), diffProvider: DefaultGitDiffProvider())
+        let cleanedArgs = peripheryArgs.filter { $0 != "--" }
         do {
-            let result = try engine.run(since: since, format: format, peripheryArgs: peripheryArgs)
+            let result = try engine.run(since: since, format: format, peripheryArgs: cleanedArgs)
             print(result.report)
             if result.hasFindings && !noFail { throw ExitCode.failure }
         } catch let error as DeadwoodError {

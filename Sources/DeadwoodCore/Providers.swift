@@ -32,12 +32,8 @@ enum Subprocess {
 public struct DefaultPeripheryRunner: PeripheryRunner {
     public init() {}
     public func scanJSON(passthroughArgs: [String]) throws -> String {
-        let result: (stdout: String, stderr: String, code: Int32)
-        do {
-            result = try Subprocess.run("periphery", ["scan", "--format", "json"] + passthroughArgs)
-        } catch {
-            throw DeadwoodError.peripheryNotFound
-        }
+        let result = try Subprocess.run("periphery", ["scan", "--format", "json"] + passthroughArgs)
+        if result.code == 127 { throw DeadwoodError.peripheryNotFound }
         guard result.code == 0 else { throw DeadwoodError.peripheryFailed(stderr: result.stderr) }
         return result.stdout
     }
