@@ -53,7 +53,10 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ github.action_path }}/.build
-        key: deadwood-build-${{ runner.os }}-${{ hashFiles(format('{0}/Package.swift', github.action_path)) }}
+        # Keyed on the action's version (action_ref changes on every release → dependency bumps),
+        # falling back to the workspace SHA for local `uses: ./`. hashFiles() can't hash the
+        # action's own Package.swift: it only hashes paths relative to the workspace, not action_path.
+        key: deadwood-build-${{ runner.os }}-${{ github.action_ref || github.sha }}
 
     - name: Build deadwood
       shell: bash
