@@ -1,0 +1,22 @@
+name: Deadwood (self-test)
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dead-code:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ./
+        with:
+          working-directory: examples/DeadCodeDemo
+          # On the PR that introduces the demo, its dead code is in the diff and
+          # gets reported. On later PRs that don't touch it, the diff is empty and
+          # the job is green — both states validate the chain.
+          fail-on-findings: 'false'
