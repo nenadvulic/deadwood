@@ -1,0 +1,4 @@
+[
+  { "file": "Sources/App/Checkout.swift", "line": 42, "column": 10, "kind": "function", "name": "unusedHelper()", "accessibility": "internal", "hints": [], "usrs": ["s:3App10unusedHelperyyF"] },
+  { "file": "Sources/App/Cart.swift", "line": 17, "column": 9, "kind": "var", "name": "staleFlag", "accessibility": "internal", "hints": ["unused"], "usrs": ["s:3App9staleFlagSbvp"] }
+]
