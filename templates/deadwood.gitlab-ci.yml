@@ -1,0 +1,54 @@
+# Deadwood — GitLab CI template. Include it and the job runs on merge requests:
+#   include:
+#     - remote: 'https://raw.githubusercontent.com/nenadvulic/deadwood/v1/templates/deadwood.gitlab-ci.yml'
+#
+# Requires a macOS runner (Periphery does a full build + index). Set a token with
+# 'api' scope in DEADWOOD_GITLAB_TOKEN to post the sticky MR note (CI_JOB_TOKEN
+# cannot post notes). Override DEADWOOD_WORKDIR / DEADWOOD_PERIPHERY_ARGS as needed.
+deadwood:
+  stage: test
+  tags: [macos]
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  variables:
+    DEADWOOD_WORKDIR: '.'
+    DEADWOOD_PERIPHERY_ARGS: ''
+    DEADWOOD_FAIL_ON_FINDINGS: 'true'
+  script:
+    - set -euo pipefail
+    - command -v periphery >/dev/null 2>&1 || brew install periphery
+    - swift build -c release --product deadwood
+    - export PATH="$PWD/.build/release:$PATH"
+    - git fetch --no-tags origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+    - cd "$DEADWOOD_WORKDIR"
+    - >
+      deadwood --since "origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD"
+      --format json --no-fail -- $DEADWOOD_PERIPHERY_ARGS > deadwood.json
+    - RENDER="$CI_PROJECT_DIR/ci/render.sh"
+    - "\"$RENDER\" gitlab --repo-root \"$CI_PROJECT_DIR\" < deadwood.json > \"$CI_PROJECT_DIR/gl-code-quality-report.json\""
+    - |
+      if [ -n "${DEADWOOD_GITLAB_TOKEN:-}" ] && [ -n "${CI_MERGE_REQUEST_IID:-}" ]; then
+        "$RENDER" markdown < deadwood.json > body.md
+        MARKER='<!-- deadwood-summary -->'
+        BASE="$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes"
+        NOTE_ID=$(curl -sf --header "PRIVATE-TOKEN: $DEADWOOD_GITLAB_TOKEN" "$BASE" \
+          | jq -r --arg m "$MARKER" '[ .[] | select(.body | contains($m)) | .id ] | first // empty')
+        BODY=$(jq -Rs . < body.md)
+        if [ -n "$NOTE_ID" ]; then
+          curl -sf -X PUT --header "PRIVATE-TOKEN: $DEADWOOD_GITLAB_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{\"body\": $BODY}" "$BASE/$NOTE_ID" >/dev/null
+        else
+          curl -sf -X POST --header "PRIVATE-TOKEN: $DEADWOOD_GITLAB_TOKEN" \
+            --header "Content-Type: application/json" \
+            --data "{\"body\": $BODY}" "$BASE" >/dev/null
+        fi
+      else
+        echo "DEADWOOD_GITLAB_TOKEN not set (or not an MR) — skipping the MR note."
+      fi
+    - COUNT=$(jq 'length' < deadwood.json)
+    - echo "deadwood:$COUNT new dead declaration(s)."
+    - if [ "$COUNT" -gt 0 ] && [ "$DEADWOOD_FAIL_ON_FINDINGS" = "true" ]; then exit 1; fi
+  artifacts:
+    reports:
+      codequality: gl-code-quality-report.json
