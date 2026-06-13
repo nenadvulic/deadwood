@@ -7,7 +7,11 @@ TARGET="${1:-}"; shift || true
 ROOT=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --repo-root) ROOT="${2:-}"; shift 2 ;;
+    --repo-root)
+      if [ $# -lt 2 ] || [ -z "${2:-}" ]; then
+        echo "render.sh: --repo-root requires a value" >&2; exit 2
+      fi
+      ROOT="$2"; shift 2 ;;
     *) echo "render.sh: unknown arg '$1'" >&2; exit 2 ;;
   esac
 done
@@ -32,6 +36,7 @@ markdown() {
   echo 'Remove them, or wire them up. If Periphery is wrong (protocol witness, @objc, reflection, public API), add a `// periphery:ignore` comment or a retain rule.'
 }
 
+# NOTE: $REL is a jq *fragment* interpolated into the jq program string; $root is passed safely via --arg (do not confuse them).
 github() {
   jq -r --arg root "$ROOT" "
     .[] | ($REL) as \$f |
@@ -43,6 +48,7 @@ github() {
 # Stable fingerprint: prefer the USR (survives line moves); else path:line:kind:name.
 fingerprint() { printf '%s' "$1" | shasum | cut -d' ' -f1; }
 
+# NOTE: O(n) jq invocations (one per field + one append per finding). Accepted trade-off for CI-scale finding counts.
 gitlab() {
   local n; n=$(jq 'length' <<<"$INPUT")
   local out='[]' i
@@ -55,7 +61,7 @@ gitlab() {
     name=$(jq -r ".[$i].name" <<<"$INPUT")
     hint0=$(jq -r ".[$i].hints[0] // empty" <<<"$INPUT")
     usr=$(jq -r ".[$i].usrs[0] // empty" <<<"$INPUT")
-    key="${usr:-$file:$line:$kind:$name}"
+    key="${usr:-$file:$line:$kind:$name}"  # fallback key assumes paths contain no embedded colons (true for Periphery macOS/Linux output)
     fp=$(fingerprint "$key")
     desc="$kind '$name' is unused"
     [ -n "$hint0" ] && desc="$desc — $hint0"
