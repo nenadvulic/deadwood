@@ -107,10 +107,14 @@ runs:
         MARKER='<!-- deadwood-summary -->'
         ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
               --jq "[ .[] | select(.body | contains(\"$MARKER\")) | .id ] | first // empty")
+        # Build the JSON body with jq (-Rs escapes the markdown into a JSON string) and send it
+        # via --input -. NOTE: gh api's `@file` is only honored by -F/--field, and even there the
+        # type magic is fragile — this jq + --input - path is unambiguous (same as the GitLab template).
+        jq -Rs '{body: .}' < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/body.json"
         if [ -n "$ID" ]; then
-          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -f body=@"$RUNNER_TEMP/body.md" >/dev/null
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" --input "$RUNNER_TEMP/body.json" >/dev/null
         else
-          gh api -X POST "repos/$REPO/issues/$PR/comments" -f body=@"$RUNNER_TEMP/body.md" >/dev/null
+          gh api -X POST "repos/$REPO/issues/$PR/comments" --input "$RUNNER_TEMP/body.json" >/dev/null
         fi
 
     - name: Gate
