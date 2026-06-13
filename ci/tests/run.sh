@@ -83,4 +83,36 @@ fi
 check verbose.json    github   verbose.github
 check assignonly.json github   assignonly.github
 
+# --- SARIF target ---
+sarif_assert() {  # sarif_assert <label> <fixture> <jq-filter> <expected> [extra render args...]
+  local label="$1" fixture="$2" filter="$3" expected="$4"; shift 4
+  local got
+  got="$("$RENDER" sarif "$@" < "$FIX/$fixture" | jq -r "$filter")"
+  if [ "$got" != "$expected" ]; then
+    echo "FAIL: sarif $label — got [$got] expected [$expected]"; fail=1
+  else
+    echo "PASS: sarif $label"
+  fi
+}
+# valid JSON + schema/version/tool
+sarif_assert "valid-json"   many.json '. | type'                                   object
+sarif_assert "version"      many.json '.version'                                   2.1.0
+sarif_assert "tool-name"    many.json '.runs[0].tool.driver.name'                  deadwood
+sarif_assert "rule-id"      many.json '.runs[0].tool.driver.rules[0].id'           deadwood/unused-declaration
+# results
+sarif_assert "empty-count"  empty.json '.runs[0].results | length'                 0
+sarif_assert "one-count"    one.json  '.runs[0].results | length'                  1
+sarif_assert "many-count"   many.json '.runs[0].results | length'                  2
+sarif_assert "level"        one.json  '.runs[0].results[0].level'                  warning
+sarif_assert "ruleId"       one.json  '.runs[0].results[0].ruleId'                 deadwood/unused-declaration
+sarif_assert "message"      one.json  '.runs[0].results[0].message.text'           "function 'unusedHelper()' is unused"
+sarif_assert "uri"          one.json  '.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri' Sources/App/Checkout.swift
+sarif_assert "line"         one.json  '.runs[0].results[0].locations[0].physicalLocation.region.startLine'     42
+sarif_assert "fingerprint"  one.json  '.runs[0].results[0].partialFingerprints.deadwoodFingerprint'            3d674dfd37c05f5ff2ec19ef781c9606e889f6ba
+# kind simplification + hint drop reused from gitlab logic
+sarif_assert "verbose-msg"  verbose.json '.runs[0].results[0].message.text'        "method 'doThing()' is unused"
+sarif_assert "assignonly-msg" assignonly.json '.runs[0].results[0].message.text'   "var 'cache' is unused — assignOnly"
+# --repo-root strips the absolute prefix
+sarif_assert "repo-root-uri" abspath.json '.runs[0].results[0].locations[0].physicalLocation.artifactLocation.uri' Sources/App/Checkout.swift --repo-root /Users/ci/work/repo
+
 exit $fail
