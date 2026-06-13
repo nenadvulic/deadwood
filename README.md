@@ -1,6 +1,6 @@
 # Deadwood
 
-Report the dead code a change introduces — scoped to your git diff, powered by [Periphery](https://github.com/peripheryapp/periphery).
+Report the dead code a change introduces,  scoped to your git diff, powered by [Periphery](https://github.com/peripheryapp/periphery).
 
 Periphery finds unused declarations across the whole project. Deadwood runs it, then keeps only the findings located in the lines your change touched, so you see *what this PR/commit made dead*, not a wall of pre-existing debt.
 
