@@ -1,0 +1,2 @@
+# Minimal config: SwiftPM project, report everything unused.
+retain_public: false
