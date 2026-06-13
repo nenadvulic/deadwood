@@ -103,7 +103,7 @@ runs:
         PR: ${{ github.event.pull_request.number }}
       run: |
         set -euo pipefail
-        "${{ github.action_path }}/ci/render.sh" markdown < "$JSON" > "$RUNNER_TEMP/body.md"
+        "${{ github.action_path }}/ci/render.sh" markdown --repo-root "$GITHUB_WORKSPACE" < "$JSON" > "$RUNNER_TEMP/body.md"
         MARKER='<!-- deadwood-summary -->'
         ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
               --jq "[ .[] | select(.body | contains(\"$MARKER\")) | .id ] | first // empty")
