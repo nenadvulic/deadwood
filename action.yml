@@ -22,7 +22,7 @@ inputs:
     description: 'Post/update a sticky PR summary comment.'
     default: 'true'
   periphery-version:
-    description: 'Periphery version for `brew install` (e.g. "2.21.0"). Empty installs the latest.'
+    description: 'Periphery version hint. Best-effort: brew installs the formula''s current version; actual version may differ.'
     default: ''
 
 runs:
@@ -71,7 +71,7 @@ runs:
         PERIPHERY_ARGS: ${{ inputs.periphery-args }}
       run: |
         set -euo pipefail
-        git fetch --no-tags --depth=1 origin "$BASE"
+        git fetch --no-tags origin "$BASE"
         # shellcheck disable=SC2086 — intentional word splitting on periphery args
         if ! deadwood --since "origin/$BASE...HEAD" --format json --no-fail -- $PERIPHERY_ARGS > "$RUNNER_TEMP/deadwood.json" 2> "$RUNNER_TEMP/deadwood.err"; then
           echo "::error::deadwood/Periphery failed:"; cat "$RUNNER_TEMP/deadwood.err" >&2
@@ -85,7 +85,10 @@ runs:
         JSON: ${{ steps.scan.outputs.json }}
       run: |
         set -euo pipefail
-        "${{ github.action_path }}/ci/render.sh" github --repo-root "$PWD" < "$JSON"
+        # No working-directory here: anchor paths to the workspace root so
+        # --repo-root strips the absolute prefix to repo-root-relative paths
+        # for GitHub annotation anchoring.
+        "${{ github.action_path }}/ci/render.sh" github --repo-root "$GITHUB_WORKSPACE" < "$JSON"
 
     - name: Upsert sticky PR comment
       if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
@@ -100,11 +103,11 @@ runs:
         "${{ github.action_path }}/ci/render.sh" markdown < "$JSON" > "$RUNNER_TEMP/body.md"
         MARKER='<!-- deadwood-summary -->'
         ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-              --jq ".[] | select(.body | contains(\"$MARKER\")) | .id" | head -n1)
+              --jq "[ .[] | select(.body | contains(\"$MARKER\")) | .id ] | first // empty")
         if [ -n "$ID" ]; then
-          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -f body=@"$RUNNER_TEMP/body.md" >/dev/null
         else
-          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/body.md" >/dev/null
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -f body=@"$RUNNER_TEMP/body.md" >/dev/null
         fi
 
     - name: Gate
