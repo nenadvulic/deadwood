@@ -1,0 +1,1 @@
+[{ "file": "Sources/App/Svc.swift", "line": 12, "column": 9, "kind": "var.instance", "name": "cache", "accessibility": "internal", "hints": ["assignOnly"], "usrs": ["s:assign"] }]

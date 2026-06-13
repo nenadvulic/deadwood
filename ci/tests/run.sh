@@ -80,4 +80,7 @@ else
   echo "PASS: nousr fallback fingerprint"
 fi
 
+check verbose.json    github   verbose.github
+check assignonly.json github   assignonly.github
+
 exit $fail

@@ -1,0 +1,1 @@
+[{ "file": "Sources/App/Svc.swift", "line": 8, "column": 10, "kind": "function.method.instance", "name": "doThing()", "accessibility": "internal", "hints": ["unused"], "usrs": ["s:verbose"] }]
