@@ -1,0 +1,2 @@
+::warning file=Sources/App/Checkout.swift,line=42,col=10::deadwood: function 'unusedHelper()' is unused
+::warning file=Sources/App/Cart.swift,line=17,col=9::deadwood: var 'staleFlag' is unused — unused

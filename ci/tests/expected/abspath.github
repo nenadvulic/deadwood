@@ -1,0 +1,1 @@
+::warning file=Sources/App/Checkout.swift,line=42,col=10::deadwood: function 'unusedHelper()' is unused
