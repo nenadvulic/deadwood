@@ -1,0 +1,129 @@
+name: 'deadwood'
+description: 'Report the dead code a pull request introduces (diff-scoped, powered by Periphery), as inline annotations and a sticky PR comment.'
+author: 'Nenad Vulic'
+branding:
+  icon: 'scissors'
+  color: 'green'
+
+inputs:
+  base:
+    description: 'Base ref to diff against. Defaults to the PR base branch.'
+    default: ${{ github.event.pull_request.base.ref }}
+  working-directory:
+    description: 'Directory containing the Swift package / .periphery.yml.'
+    default: '.'
+  periphery-args:
+    description: 'Arguments passed through to `periphery scan` (after --), e.g. "--project App.xcodeproj --schemes App".'
+    default: ''
+  fail-on-findings:
+    description: 'Exit non-zero when new dead code is found (the CI gate).'
+    default: 'true'
+  comment:
+    description: 'Post/update a sticky PR summary comment.'
+    default: 'true'
+  periphery-version:
+    description: 'Periphery version hint. Best-effort: brew installs the formula''s current version; actual version may differ.'
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Require macOS
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ "$RUNNER_OS" != "macOS" ]; then
+          echo "::error::deadwood requires a macOS runner — Periphery needs a full build + index. Use 'runs-on: macos-latest'."
+          exit 1
+        fi
+
+    - name: Install Periphery
+      shell: bash
+      env:
+        PERIPHERY_VERSION: ${{ inputs.periphery-version }}
+      run: |
+        set -euo pipefail
+        if command -v periphery >/dev/null 2>&1; then exit 0; fi
+        brew install periphery
+        if [ -n "$PERIPHERY_VERSION" ]; then
+          echo "::notice::periphery-version pinning is best-effort via brew; installed $(periphery version)."
+        fi
+
+    - name: Cache SwiftPM build of deadwood
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.action_path }}/.build
+        # Keyed on the action's version (action_ref changes on every release → dependency bumps),
+        # falling back to the workspace SHA for local `uses: ./`. hashFiles() can't hash the
+        # action's own Package.swift: it only hashes paths relative to the workspace, not action_path.
+        key: deadwood-build-${{ runner.os }}-${{ github.action_ref || github.sha }}
+
+    - name: Build deadwood
+      shell: bash
+      run: |
+        set -euo pipefail
+        swift build --package-path "${{ github.action_path }}" -c release --product deadwood
+        echo "${{ github.action_path }}/.build/release" >> "$GITHUB_PATH"
+
+    - name: Run deadwood (diff-scoped, one Periphery run)
+      id: scan
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        BASE: ${{ inputs.base }}
+        PERIPHERY_ARGS: ${{ inputs.periphery-args }}
+      run: |
+        set -euo pipefail
+        git fetch --no-tags origin "$BASE"
+        # shellcheck disable=SC2086 — intentional word splitting on periphery args
+        if ! deadwood --since "origin/$BASE...HEAD" --format json --no-fail -- $PERIPHERY_ARGS > "$RUNNER_TEMP/deadwood.json" 2> "$RUNNER_TEMP/deadwood.err"; then
+          echo "::error::deadwood/Periphery failed:"; cat "$RUNNER_TEMP/deadwood.err" >&2
+          exit 1
+        fi
+        echo "json=$RUNNER_TEMP/deadwood.json" >> "$GITHUB_OUTPUT"
+
+    - name: Emit annotations
+      shell: bash
+      env:
+        JSON: ${{ steps.scan.outputs.json }}
+      run: |
+        set -euo pipefail
+        # No working-directory here: anchor paths to the workspace root so
+        # --repo-root strips the absolute prefix to repo-root-relative paths
+        # for GitHub annotation anchoring.
+        "${{ github.action_path }}/ci/render.sh" github --repo-root "$GITHUB_WORKSPACE" < "$JSON"
+
+    - name: Upsert sticky PR comment
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        JSON: ${{ steps.scan.outputs.json }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        set -euo pipefail
+        "${{ github.action_path }}/ci/render.sh" markdown --repo-root "$GITHUB_WORKSPACE" < "$JSON" > "$RUNNER_TEMP/body.md"
+        MARKER='<!-- deadwood-summary -->'
+        ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+              --jq "[ .[] | select(.body | contains(\"$MARKER\")) | .id ] | first // empty")
+        # Build the JSON body with jq (-Rs escapes the markdown into a JSON string) and send it
+        # via --input -. NOTE: gh api's `@file` is only honored by -F/--field, and even there the
+        # type magic is fragile — this jq + --input - path is unambiguous (same as the GitLab template).
+        jq -Rs '{body: .}' < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/body.json"
+        if [ -n "$ID" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" --input "$RUNNER_TEMP/body.json" >/dev/null
+        else
+          gh api -X POST "repos/$REPO/issues/$PR/comments" --input "$RUNNER_TEMP/body.json" >/dev/null
+        fi
+
+    - name: Gate
+      shell: bash
+      env:
+        JSON: ${{ steps.scan.outputs.json }}
+        FAIL: ${{ inputs.fail-on-findings }}
+      run: |
+        set -euo pipefail
+        COUNT=$(jq 'length' < "$JSON")
+        echo "deadwood: $COUNT new dead declaration(s)."
+        if [ "$COUNT" -gt 0 ] && [ "$FAIL" = "true" ]; then exit 1; fi

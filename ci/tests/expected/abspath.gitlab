@@ -1,0 +1,14 @@
+[
+  {
+    "check_name": "deadwood/unused-declaration",
+    "description": "function 'unusedHelper()' is unused",
+    "fingerprint": "FP",
+    "location": {
+      "lines": {
+        "begin": 42
+      },
+      "path": "Sources/App/Checkout.swift"
+    },
+    "severity": "minor"
+  }
+]
