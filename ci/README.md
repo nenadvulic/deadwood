@@ -53,7 +53,7 @@ Runs on merge requests, on a runner tagged `macos`. Emits a Code Quality report
 (shown inline in the MR diff and the widget). Set `DEADWOOD_GITLAB_TOKEN` (a token
 with `api` scope) to also post a sticky MR note — `CI_JOB_TOKEN` cannot post notes.
 
-Variables: `DEADWOOD_WORKDIR`, `DEADWOOD_PERIPHERY_ARGS`, `DEADWOOD_FAIL_ON_FINDINGS`.
+Variables: `DEADWOOD_WORKDIR`, `DEADWOOD_PERIPHERY_ARGS`, `DEADWOOD_FAIL_ON_FINDINGS`, `DEADWOOD_GITLAB_TOKEN`.
 
 ### Example output (Code Quality report)
 

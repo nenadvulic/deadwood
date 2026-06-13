@@ -53,7 +53,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: ${{ github.action_path }}/.build
-        key: deadwood-build-${{ runner.os }}-${{ hashFiles(format('{0}/Package.resolved', github.action_path)) }}
+        key: deadwood-build-${{ runner.os }}-${{ hashFiles(format('{0}/Package.swift', github.action_path)) }}
 
     - name: Build deadwood
       shell: bash

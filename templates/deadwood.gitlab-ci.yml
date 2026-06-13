@@ -47,7 +47,7 @@ deadwood:
         echo "DEADWOOD_GITLAB_TOKEN not set (or not an MR) — skipping the MR note."
       fi
     - COUNT=$(jq 'length' < deadwood.json)
-    - echo "deadwood:$COUNT new dead declaration(s)."
+    - echo "deadwood: $COUNT new dead declaration(s)."
     - if [ "$COUNT" -gt 0 ] && [ "$DEADWOOD_FAIL_ON_FINDINGS" = "true" ]; then exit 1; fi
   artifacts:
     reports:
