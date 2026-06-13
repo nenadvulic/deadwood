@@ -1,0 +1,26 @@
+[
+  {
+    "check_name": "deadwood/unused-declaration",
+    "description": "function 'unusedHelper()' is unused",
+    "fingerprint": "FP",
+    "location": {
+      "lines": {
+        "begin": 42
+      },
+      "path": "Sources/App/Checkout.swift"
+    },
+    "severity": "minor"
+  },
+  {
+    "check_name": "deadwood/unused-declaration",
+    "description": "var 'staleFlag' is unused — unused",
+    "fingerprint": "FP",
+    "location": {
+      "lines": {
+        "begin": 17
+      },
+      "path": "Sources/App/Cart.swift"
+    },
+    "severity": "minor"
+  }
+]
