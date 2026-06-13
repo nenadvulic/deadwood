@@ -24,6 +24,9 @@ inputs:
   periphery-version:
     description: 'Periphery version hint. Best-effort: brew installs the formula''s current version; actual version may differ.'
     default: ''
+  sarif-file:
+    description: 'If set, write a SARIF 2.1.0 report to this path (upload it yourself with github/codeql-action/upload-sarif).'
+    default: ''
 
 runs:
   using: 'composite'
@@ -92,6 +95,18 @@ runs:
         # --repo-root strips the absolute prefix to repo-root-relative paths
         # for GitHub annotation anchoring.
         "${{ github.action_path }}/ci/render.sh" github --repo-root "$GITHUB_WORKSPACE" < "$JSON"
+
+    - name: Write SARIF report
+      if: ${{ inputs.sarif-file != '' }}
+      shell: bash
+      env:
+        JSON: ${{ steps.scan.outputs.json }}
+        SARIF_FILE: ${{ inputs.sarif-file }}
+      run: |
+        set -euo pipefail
+        # Anchor paths to the workspace root (repo-root-relative) so Code Scanning maps findings to files.
+        "${{ github.action_path }}/ci/render.sh" sarif --repo-root "$GITHUB_WORKSPACE" < "$JSON" > "$SARIF_FILE"
+        echo "Wrote SARIF report to $SARIF_FILE"
 
     - name: Upsert sticky PR comment
       if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
