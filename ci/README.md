@@ -79,3 +79,23 @@ Variables: `DEADWOOD_WORKDIR`, `DEADWOOD_PERIPHERY_ARGS`, `DEADWOOD_FAIL_ON_FIND
 One `deadwood --format json --no-fail` run → `ci/render.sh` transforms the JSON into
 GitHub annotations, a GitLab Code Quality report, or the shared markdown summary.
 The renderer is pure (bash + jq) and snapshot-tested under `ci/tests/`.
+
+## Cost & cadence
+
+Periphery does a **full build + index** of the package on every run — that is the
+expensive part, measured in (tens of) seconds to minutes on real projects, not
+milliseconds. Deadwood runs it **once** per job and derives every output from that
+single run, but the run itself is not cheap.
+
+So pick the cadence deliberately:
+
+- **CI** — run on **pull/merge requests**, not on every push to every branch. The
+  templates here already gate on `pull_request` / `merge_request_event`. The build
+  caching (`actions/cache` on `.build`) keeps deadwood's own compile warm; Periphery's
+  project build is the remaining cost.
+- **Local / agents** — don't run it per keystroke or per file edit. The companion
+  Claude Code hook is a **`Stop` hook** (once when the agent finishes a turn), not a
+  `PostToolUse` hook, for exactly this reason.
+
+If a job feels slow, that's Periphery indexing the project — expected, not a Deadwood
+overhead.

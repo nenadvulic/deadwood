@@ -1,0 +1,1 @@
+::warning file=Sources/App/Svc.swift,line=12,col=9::deadwood: var 'cache' is unused — assignOnly

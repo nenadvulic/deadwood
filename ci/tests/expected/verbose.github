@@ -1,0 +1,1 @@
+::warning file=Sources/App/Svc.swift,line=8,col=10::deadwood: method 'doThing()' is unused
