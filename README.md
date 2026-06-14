@@ -32,8 +32,16 @@ Exit code is `1` when new dead code is found (so it can gate CI), `0` otherwise.
 
 ## CI
 
-Run Deadwood on every pull/merge request — inline findings plus a sticky summary, on
-**GitHub and GitLab**. See [ci/README.md](ci/README.md). Requires a macOS runner.
+Run Deadwood on every pull/merge request, on a macOS runner. It reports the
+newly-introduced dead code where reviewers (and AI agents) already look:
+
+- **GitHub** — inline `::warning` annotations, a sticky PR summary comment, and an
+  optional **SARIF 2.1.0** report. Set the action's `sarif-file` input and upload it
+  with `github/codeql-action/upload-sarif`, and findings show up in **Security ▸ Code
+  scanning** — deduplicated and tracked over time (not just in the run log).
+- **GitLab** — a Code Quality report (shown inline in the MR diff) plus a sticky MR note.
+
+See [ci/README.md](ci/README.md) for the GitHub Action and the GitLab template.
 
 ## Direction & roadmap
 
@@ -41,7 +49,7 @@ Deadwood is an **agent-native dead-code guardrail** built *on top of* Periphery 
 
 - ✅ **Diff-scoped engine** — report only the dead code a change introduces, not pre-existing debt.
 - ✅ **Agent hook** — a Claude Code Stop hook feeds newly-introduced dead code back to the agent so it cleans up before finishing (see [`.claude/`](.claude/)).
-- ✅ **CI** — GitHub Action + GitLab template: inline findings (annotations / Code Quality report) plus a sticky PR/MR summary (see [`ci/`](ci/README.md)).
+- ✅ **CI** — GitHub Action + GitLab template: inline findings (annotations / Code Quality report), a **SARIF** report for GitHub Code Scanning, plus a sticky PR/MR summary (see [`ci/`](ci/README.md)).
 - 🔜 **Assisted removal** — once Periphery exposes each declaration's full source range, Deadwood can excise the dead declaration with SwiftSyntax (Periphery finds, Deadwood removes). Tracked upstream in [Periphery Discussion #1130](https://github.com/peripheryapp/periphery/discussions/1130).
 
 The assisted-removal step is deliberately gated on [#1130](https://github.com/peripheryapp/periphery/discussions/1130): safe removal needs the declaration's exact source range from Periphery's output, so we're aligning with upstream rather than guessing ranges.
