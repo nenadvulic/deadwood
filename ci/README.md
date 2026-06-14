@@ -25,7 +25,35 @@ jobs:
 ```
 
 Inputs: `base`, `working-directory`, `periphery-args`, `fail-on-findings` (default `true`),
-`comment` (default `true`), `periphery-version`.
+`comment` (default `true`), `periphery-version`, `sarif-file`.
+
+### GitHub Code Scanning (SARIF)
+
+Set `sarif-file` to also emit a SARIF 2.1.0 report, then upload it so findings appear
+in the repo's **Security ▸ Code scanning** tab (deduplicated and tracked over time):
+
+```yaml
+jobs:
+  deadwood:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write   # required to upload SARIF
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: nenadvulic/deadwood@v1
+        with:
+          sarif-file: deadwood.sarif
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()            # upload even if the gate failed the job
+        with:
+          sarif_file: deadwood.sarif
+```
+
+The action only writes the file (dependency-light); you add the upload step. GitLab
+has no SARIF equivalent here — it uses the Code Quality report instead.
 
 ### Example output (annotations)
 

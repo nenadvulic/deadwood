@@ -74,9 +74,51 @@ gitlab() {
   jq -S '.' <<<"$out"
 }
 
+# SARIF 2.1.0 (GitHub Code Scanning). Reuses $KIND + fingerprint() so the message
+# matches the other targets. O(n) jq invocations, like gitlab — fine at CI scale.
+sarif() {
+  local n; n=$(jq 'length' <<<"$INPUT")
+  local results='[]' i
+  for ((i = 0; i < n; i++)); do
+    local file line kind name hint0 usr key fp desc
+    file=$(jq -r ".[$i].file" <<<"$INPUT")
+    if [ -n "$ROOT" ] && [[ "$file" == "$ROOT/"* ]]; then file="${file#"$ROOT"/}"; fi
+    line=$(jq -r ".[$i].line" <<<"$INPUT")
+    kind=$(jq -r ".[$i] | $KIND" <<<"$INPUT")
+    name=$(jq -r ".[$i].name" <<<"$INPUT")
+    hint0=$(jq -r ".[$i].hints[0] // empty" <<<"$INPUT")
+    usr=$(jq -r ".[$i].usrs[0] // empty" <<<"$INPUT")
+    key="${usr:-$file:$line:$kind:$name}"
+    fp=$(fingerprint "$key")
+    desc="$kind '$name' is unused"
+    [ -n "$hint0" ] && [ "$hint0" != "unused" ] && desc="$desc — $hint0"
+    results=$(jq --arg d "$desc" --arg fp "$fp" --arg p "$file" --argjson l "$line" \
+      '. + [{
+        ruleId: "deadwood/unused-declaration",
+        level: "warning",
+        message: {text: $d},
+        locations: [{physicalLocation: {artifactLocation: {uri: $p}, region: {startLine: $l}}}],
+        partialFingerprints: {deadwoodFingerprint: $fp}
+      }]' <<<"$results")
+  done
+  jq -Sn --argjson results "$results" '{
+    "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+    version: "2.1.0",
+    runs: [{
+      tool: {driver: {
+        name: "deadwood",
+        informationUri: "https://github.com/nenadvulic/deadwood",
+        rules: [{id: "deadwood/unused-declaration", name: "UnusedDeclaration", shortDescription: {text: "Unused declaration introduced by this change"}}]
+      }},
+      results: $results
+    }]
+  }'
+}
+
 case "$TARGET" in
   markdown) markdown ;;
   github)   github ;;
   gitlab)   gitlab ;;
-  *) echo "render.sh: target must be one of github|gitlab|markdown" >&2; exit 2 ;;
+  sarif)    sarif ;;
+  *) echo "render.sh: target must be one of github|gitlab|markdown|sarif" >&2; exit 2 ;;
 esac
